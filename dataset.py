@@ -28,7 +28,7 @@ class YOLODataset(Dataset):
         anchors,
         image_size=416,
         S=[13, 26, 52],
-        C=20,
+        C=80,
         transform=None,
     ):
         self.annotations = pd.read_csv(csv_file)
