@@ -22,13 +22,13 @@ ImageFile.LOAD_TRUNCATED_IMAGES = True
 class YOLODataset(Dataset):
     def __init__(
         self,
-        csv_file, # csv file path
-        img_dir, 
-        label_dir, 
+        csv_file,
+        img_dir,
+        label_dir,
         anchors,
         image_size=416,
-        grid_size=[13, 26, 52], # grid sizes of different scales 
-        num_classes=20, # no of classes 
+        S=[13, 26, 52],
+        C=20,
         transform=None,
     ):
         self.annotations = pd.read_csv(csv_file)
@@ -36,11 +36,11 @@ class YOLODataset(Dataset):
         self.label_dir = label_dir
         self.image_size = image_size
         self.transform = transform
-        self.grid_size = grid_size
+        self.S = S
         self.anchors = torch.tensor(anchors[0] + anchors[1] + anchors[2])  # for all 3 scales
         self.num_anchors = self.anchors.shape[0]
         self.num_anchors_per_scale = self.num_anchors // 3
-        self.num_classes = num_classes
+        self.C = C
         self.ignore_iou_thresh = 0.5
 
     def __len__(self):
@@ -48,31 +48,28 @@ class YOLODataset(Dataset):
 
     def __getitem__(self, index):
         label_path = os.path.join(self.label_dir, self.annotations.iloc[index, 1])
-        bboxes = np.roll(np.loadtxt(fname=label_path, delimiter=" ", ndmin=2), 4, axis=1).tolist() # [classs, x, y, w, h] -> [x, y, w, h, class]
+        bboxes = np.roll(np.loadtxt(fname=label_path, delimiter=" ", ndmin=2), 4, axis=1).tolist()
         img_path = os.path.join(self.img_dir, self.annotations.iloc[index, 0])
         image = np.array(Image.open(img_path).convert("RGB"))
 
         if self.transform:
             augmentations = self.transform(image=image, bboxes=bboxes)
             image = augmentations["image"]
-            bboxes = augmentations["bboxes"] # boundary boxes
+            bboxes = augmentations["bboxes"]
 
         # Below assumes 3 scale predictions (as paper) and same num of anchors per scale
-        targets = [torch.zeros((self.num_anchors // 3, S, S, 6)) for S in self.grid_size] # [prob, x, y, w, h, class]
-        
+        targets = [torch.zeros((self.num_anchors // 3, S, S, 6)) for S in self.S]
         for box in bboxes:
             iou_anchors = iou(torch.tensor(box[2:4]), self.anchors)
             anchor_indices = iou_anchors.argsort(descending=True, dim=0)
             x, y, width, height, class_label = box
             has_anchor = [False] * 3  # each scale should have one anchor
-
             for anchor_idx in anchor_indices:
                 scale_idx = anchor_idx // self.num_anchors_per_scale
                 anchor_on_scale = anchor_idx % self.num_anchors_per_scale
-                S = self.grid_size[scale_idx]
+                S = self.S[scale_idx]
                 i, j = int(S * y), int(S * x)  # which cell
-                anchor_taken = targets[scale_idx][anchor_on_scale, i, j, 0] # is this acchor taken
-                
+                anchor_taken = targets[scale_idx][anchor_on_scale, i, j, 0]
                 if not anchor_taken and not has_anchor[scale_idx]:
                     targets[scale_idx][anchor_on_scale, i, j, 0] = 1
                     x_cell, y_cell = S * x - j, S * y - i  # both between [0,1]

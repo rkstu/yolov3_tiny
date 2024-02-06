@@ -73,7 +73,11 @@ class ResidualBlock(nn.Module):
 
     def forward(self, x):
         for layer in self.layers:
-            x = x + layer(x) if self.use_residual else layer(x)
+            if self.use_residual:
+                x = x + layer(x)
+            else:
+                x = layer(x)
+
         return x
 
 
