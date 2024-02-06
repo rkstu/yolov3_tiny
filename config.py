@@ -5,7 +5,7 @@ import torch
 from albumentations.pytorch import ToTensorV2
 from utils import seed_everything
 
-DATASET = 'PASCAL_VOC'
+DATASET = 'COCO'
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 # seed_everything()  # If you want deterministic behavior
 NUM_WORKERS = 4
@@ -23,8 +23,8 @@ PIN_MEMORY = True
 LOAD_MODEL = True
 SAVE_MODEL = True
 CHECKPOINT_FILE = "checkpoint.pth.tar"
-IMG_DIR = DATASET + "/images/"
-LABEL_DIR = DATASET + "/labels/"
+IMG_DIR = "/kaggle/input/coco-2014-dataset-for-yolov3/coco2014/images/train2014"
+LABEL_DIR = "/kaggle/input/coco-2014-dataset-for-yolov3/coco2014/labels/train2014"
 
 ANCHORS = [
     [(0.28, 0.22), (0.38, 0.48), (0.9, 0.78)],
